@@ -8,10 +8,6 @@ plugins {
 group = "io.github.juuxel"
 version = "1.0.0"
 
-if (file("private.gradle").exists()) {
-    apply(from = "private.gradle")
-}
-
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
@@ -38,6 +34,7 @@ publishing {
 
         pom {
             name.set("LibNinePatch")
+            description.set("A simple nine-patch renderer")
             url.set("https://github.com/Juuxel/LibNinePatch")
 
             licenses {
