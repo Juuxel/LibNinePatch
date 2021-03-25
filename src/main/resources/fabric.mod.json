@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "libninepatch",
+  "name": "LibNinePatch",
+  "version": "$version",
+
+  "custom": {
+    "modmenu": {
+      "badges": ["library"]
+    }
+  }
+}
