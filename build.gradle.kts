@@ -2,7 +2,7 @@ plugins {
     `java-library`
     `maven-publish`
     signing
-    id("org.cadixdev.licenser") version "0.5.1"
+    id("org.cadixdev.licenser") version "0.6.0"
 }
 
 group = "io.github.juuxel"
@@ -25,7 +25,7 @@ dependencies {
 }
 
 license {
-    header = file("HEADER.txt")
+    header(file("HEADER.txt"))
 }
 
 publishing {
@@ -54,7 +54,7 @@ publishing {
 
             scm {
                 connection.set("scm:git:git://github.com/Juuxel/LibNinePatch.git")
-                developerConnection.set("scm:git:ssh://github.com:Juuxel/v.git")
+                developerConnection.set("scm:git:ssh://github.com:Juuxel/LibNinePatch.git")
                 url.set("https://github.com/Juuxel/LibNinePatch")
             }
         }
