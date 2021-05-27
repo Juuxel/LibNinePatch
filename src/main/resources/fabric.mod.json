@@ -4,6 +4,10 @@
   "name": "LibNinePatch",
   "version": "$version",
 
+  "description": "A simple nine-patch renderer.",
+  "authors": ["Juuz"],
+  "license": "MPL-2.0",
+
   "custom": {
     "modmenu": {
       "badges": ["library"]
