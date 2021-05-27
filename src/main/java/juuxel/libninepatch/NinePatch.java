@@ -41,36 +41,49 @@ public final class NinePatch<T> {
     }
 
     /**
-     * Draws a nine-patch region using the renderer.
+     * Draws a nine-patch region using a contextual texture renderer.
+     *
+     * @param renderer the renderer for drawing the texture
+     * @param context  the context used for drawing the texture
+     * @param width    the width of the target region
+     * @param height   the height of the target region
+     * @param <C> the type of context that is needed to draw a texture
+     */
+    public <C> void draw(ContextualTextureRenderer<? super T, C> renderer, C context, int width, int height) {
+        if (mode == Mode.TILING) {
+            drawTiling(renderer, context, width, height);
+        } else {
+            drawStretching(renderer, context, width, height);
+        }
+
+        drawCorners(renderer, context, width, height);
+    }
+
+    /**
+     * Draws a nine-patch region using a non-contextual texture renderer.
      *
      * @param renderer the renderer for drawing the texture
      * @param width    the width of the target region
      * @param height   the height of the target region
      */
     public void draw(TextureRenderer<? super T> renderer, int width, int height) {
-        if (mode == Mode.TILING) {
-            drawTiling(renderer, width, height);
-        } else {
-            drawStretching(renderer, width, height);
-        }
-
-        drawCorners(renderer, width, height);
+        draw(renderer, null, width, height);
     }
 
     private boolean hasCorners() {
         return cornerWidth > 0 && cornerHeight > 0 && cornerU > 0 & cornerV > 0;
     }
 
-    private void drawCorners(TextureRenderer<? super T> renderer, int width, int height) {
+    private <C> void drawCorners(ContextualTextureRenderer<? super T, C> renderer, C context, int width, int height) {
         if (!hasCorners()) return;
 
-        renderer.draw(texture, 0, 0, cornerWidth, cornerHeight, 0, 0, cornerU, cornerV);
-        renderer.draw(texture, width - cornerWidth, 0, cornerWidth, cornerHeight, 1 - cornerU, 0, 1, cornerV);
-        renderer.draw(texture, 0, height - cornerHeight, cornerWidth, cornerHeight, 0, 1 - cornerV, cornerU, 1);
-        renderer.draw(texture, width - cornerWidth, height - cornerHeight, cornerWidth, cornerHeight, 1 - cornerU, 1 - cornerV, 1, 1);
+        renderer.draw(texture, context, 0, 0, cornerWidth, cornerHeight, 0, 0, cornerU, cornerV);
+        renderer.draw(texture, context, width - cornerWidth, 0, cornerWidth, cornerHeight, 1 - cornerU, 0, 1, cornerV);
+        renderer.draw(texture, context, 0, height - cornerHeight, cornerWidth, cornerHeight, 0, 1 - cornerV, cornerU, 1);
+        renderer.draw(texture, context, width - cornerWidth, height - cornerHeight, cornerWidth, cornerHeight, 1 - cornerU, 1 - cornerV, 1, 1);
     }
 
-    private void drawTiling(TextureRenderer<? super T> renderer, int width, int height) {
+    private <C> void drawTiling(ContextualTextureRenderer<? super T, C> renderer, C context, int width, int height) {
         float u1 = cornerU, v1 = cornerV;
         float u2 = 1 - cornerU, v2 = 1 - cornerV;
         int tileWidth = this.tileWidth == null ? (int) (cornerWidth / cornerU * (u2 - u1)) : this.tileWidth;
@@ -94,7 +107,7 @@ public final class NinePatch<T> {
                     heightRemaining -= th;
                     float tv2 = th == tileHeight ? v2 : lerp((float) th / (float) tileHeight, v1, v2);
 
-                    renderer.draw(texture, x, y, tw, th, u1, v1, tu2, tv2);
+                    renderer.draw(texture, context, x, y, tw, th, u1, v1, tu2, tv2);
 
                     y += th;
                 }
@@ -116,8 +129,8 @@ public final class NinePatch<T> {
                     heightRemaining -= th;
                     float tv2 = th == tileHeight ? v2 : lerp((float) th / (float) tileHeight, v1, v2);
 
-                    renderer.draw(texture, 0, y, cornerWidth, th, 0, v1, cornerU, tv2);
-                    renderer.draw(texture, width - cornerWidth, y, cornerWidth, th, 1 - cornerU, v1, 1, tv2);
+                    renderer.draw(texture, context, 0, y, cornerWidth, th, 0, v1, cornerU, tv2);
+                    renderer.draw(texture, context, width - cornerWidth, y, cornerWidth, th, 1 - cornerU, v1, 1, tv2);
 
                     y += th;
                 }
@@ -133,8 +146,8 @@ public final class NinePatch<T> {
                     widthRemaining -= tw;
                     float tu2 = tw == tileWidth ? u2 : lerp((float) tw / (float) tileWidth, u1, u2);
 
-                    renderer.draw(texture, x, 0, tw, cornerHeight, u1, 0, tu2, cornerV);
-                    renderer.draw(texture, x, height - cornerHeight, tw, cornerHeight, u1, 1 - cornerV, tu2, 1);
+                    renderer.draw(texture, context, x, 0, tw, cornerHeight, u1, 0, tu2, cornerV);
+                    renderer.draw(texture, context, x, height - cornerHeight, tw, cornerHeight, u1, 1 - cornerV, tu2, 1);
 
                     x += tw;
                 }
@@ -142,20 +155,20 @@ public final class NinePatch<T> {
         }
     }
 
-    private void drawStretching(TextureRenderer<? super T> renderer, int width, int height) {
+    private <C> void drawStretching(ContextualTextureRenderer<? super T, C> renderer, C context, int width, int height) {
         int w = width - 2 * cornerWidth;
         int h = height - 2 * cornerHeight;
         float u = cornerU;
         float v = cornerV;
 
         if (hasCorners()) {
-            /* top   */ renderer.draw(texture, cornerWidth, 0, w, cornerHeight, u, 0, 1 - u, v);
-            /* left  */ renderer.draw(texture, 0, cornerHeight, cornerWidth, h, 0, v, u, 1 - v);
-            /* down  */ renderer.draw(texture, cornerWidth, height - cornerHeight, w, cornerHeight, u, 1 - v, 1 - u, 1);
-            /* right */ renderer.draw(texture, width - cornerWidth, cornerHeight, cornerWidth, h, 1 - u, v, 1, 1 - v);
+            /* top   */ renderer.draw(texture, context, cornerWidth, 0, w, cornerHeight, u, 0, 1 - u, v);
+            /* left  */ renderer.draw(texture, context, 0, cornerHeight, cornerWidth, h, 0, v, u, 1 - v);
+            /* down  */ renderer.draw(texture, context, cornerWidth, height - cornerHeight, w, cornerHeight, u, 1 - v, 1 - u, 1);
+            /* right */ renderer.draw(texture, context, width - cornerWidth, cornerHeight, cornerWidth, h, 1 - u, v, 1, 1 - v);
         }
 
-        renderer.draw(texture, cornerWidth, cornerHeight, w, h, u, v, 1 - u, 1 - v);
+        renderer.draw(texture, context, cornerWidth, cornerHeight, w, h, u, v, 1 - u, 1 - v);
     }
 
     /**
