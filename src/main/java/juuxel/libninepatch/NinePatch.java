@@ -6,6 +6,7 @@
 
 package juuxel.libninepatch;
 
+import java.lang.reflect.Array;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
@@ -18,25 +19,22 @@ import java.util.Objects;
  * @param <T> the texture type
  */
 public final class NinePatch<T> {
-    private final TextureRegion<T> texture;
+    private final T[][] ninePatchTextures;
     private final int cornerWidth, cornerHeight;
-    private final float cornerU, cornerV;
     private final @Nullable Integer tileWidth;
     private final @Nullable Integer tileHeight;
     private final Mode mode;
 
     NinePatch(Builder<T> builder) {
-        this.texture = builder.texture;
+        this.ninePatchTextures = builder.textures;
         this.cornerWidth = builder.cornerWidth;
         this.cornerHeight = builder.cornerHeight;
-        this.cornerU = builder.cornerU;
-        this.cornerV = builder.cornerV;
         this.tileWidth = builder.tileWidth;
         this.tileHeight = builder.tileHeight;
         this.mode = builder.mode;
 
-        if (mode == Mode.TILING && (cornerWidth == 0 || cornerHeight == 0) && (tileWidth == null || tileHeight == null)) {
-            throw new IllegalArgumentException("Tile size must be specified when corner size is 0");
+        if (mode == Mode.TILING && (tileWidth == null || tileHeight == null)) {
+            throw new IllegalArgumentException("Tile size must be specified when for Tiling-Mode.");
         }
     }
 
@@ -47,7 +45,7 @@ public final class NinePatch<T> {
      * @param context  the context used for drawing the texture
      * @param width    the width of the target region
      * @param height   the height of the target region
-     * @param <C> the type of context that is needed to draw a texture
+     * @param <C>      the type of context that is needed to draw a texture
      */
     public <C> void draw(ContextualTextureRenderer<? super T, C> renderer, C context, int width, int height) {
         if (mode == Mode.TILING) {
@@ -71,104 +69,54 @@ public final class NinePatch<T> {
     }
 
     private boolean hasCorners() {
-        return cornerWidth > 0 && cornerHeight > 0 && cornerU > 0 & cornerV > 0;
+        return cornerWidth > 0 && cornerHeight > 0;
     }
 
     private <C> void drawCorners(ContextualTextureRenderer<? super T, C> renderer, C context, int width, int height) {
         if (!hasCorners()) return;
 
-        renderer.draw(texture, context, 0, 0, cornerWidth, cornerHeight, 0, 0, cornerU, cornerV);
-        renderer.draw(texture, context, width - cornerWidth, 0, cornerWidth, cornerHeight, 1 - cornerU, 0, 1, cornerV);
-        renderer.draw(texture, context, 0, height - cornerHeight, cornerWidth, cornerHeight, 0, 1 - cornerV, cornerU, 1);
-        renderer.draw(texture, context, width - cornerWidth, height - cornerHeight, cornerWidth, cornerHeight, 1 - cornerU, 1 - cornerV, 1, 1);
+        renderer.draw(ninePatchTextures[0][0], context, 0, 0, cornerWidth, cornerHeight, 0, 0, 1, 1);
+        renderer.draw(ninePatchTextures[0][2], context, width - cornerWidth, 0, cornerWidth, cornerHeight, 0, 0, 1, 1);
+        renderer.draw(ninePatchTextures[2][0], context, 0, height - cornerHeight, cornerWidth, cornerHeight, 0, 0, 1, 1);
+        renderer.draw(ninePatchTextures[2][2], context, width - cornerWidth, height - cornerHeight, cornerWidth, cornerHeight, 0, 0, 1, 1);
     }
 
     private <C> void drawTiling(ContextualTextureRenderer<? super T, C> renderer, C context, int width, int height) {
-        float u1 = cornerU, v1 = cornerV;
-        float u2 = 1 - cornerU, v2 = 1 - cornerV;
-        int tileWidth = this.tileWidth == null ? (int) (cornerWidth / cornerU * (u2 - u1)) : this.tileWidth;
-        int tileHeight = this.tileHeight == null ? (int) (cornerHeight / cornerV * (v2 - v1)) : this.tileHeight;
+        assert this.tileWidth != null;
+        assert this.tileHeight != null;
 
-        // Middle
-        {
-            int widthRemaining = width - 2 * cornerWidth;
-            int x = cornerWidth;
+        int centerWidth = width - (2 * cornerWidth);
+        int centerHeight = height - (2 * cornerHeight);
 
-            while (widthRemaining > 0) {
-                int tw = Math.min(widthRemaining, tileWidth);
-                widthRemaining -= tw;
-                float tu2 = tw == tileWidth ? u2 : lerp((float) tw / (float) tileWidth, u1, u2);
-
-                int heightRemaining = height - 2 * cornerHeight;
-                int y = cornerHeight;
-
-                while (heightRemaining > 0) {
-                    int th = Math.min(heightRemaining, tileHeight);
-                    heightRemaining -= th;
-                    float tv2 = th == tileHeight ? v2 : lerp((float) th / (float) tileHeight, v1, v2);
-
-                    renderer.draw(texture, context, x, y, tw, th, u1, v1, tu2, tv2);
-
-                    y += th;
-                }
-
-                x += tw;
-            }
-        }
+        renderer.drawTiled(ninePatchTextures[1][1], context, cornerWidth, cornerHeight, centerWidth, centerHeight, tileWidth, tileHeight);
 
         if (hasCorners()) {
-            // draw edges
+            // horizontal
+            renderer.drawTiled(ninePatchTextures[0][1], context, cornerWidth, 0, centerWidth, cornerHeight, tileWidth, cornerHeight);
+            renderer.drawTiled(ninePatchTextures[2][1], context, cornerWidth, height - cornerHeight, centerWidth, cornerHeight, tileWidth, cornerHeight);
 
             // vertical
-            {
-                int heightRemaining = height - 2 * cornerHeight;
-                int y = cornerHeight;
-
-                while (heightRemaining > 0) {
-                    int th = Math.min(heightRemaining, tileHeight);
-                    heightRemaining -= th;
-                    float tv2 = th == tileHeight ? v2 : lerp((float) th / (float) tileHeight, v1, v2);
-
-                    renderer.draw(texture, context, 0, y, cornerWidth, th, 0, v1, cornerU, tv2);
-                    renderer.draw(texture, context, width - cornerWidth, y, cornerWidth, th, 1 - cornerU, v1, 1, tv2);
-
-                    y += th;
-                }
-            }
-
-            // Horizontal
-            {
-                int widthRemaining = width - 2 * cornerWidth;
-                int x = cornerWidth;
-
-                while (widthRemaining > 0) {
-                    int tw = Math.min(widthRemaining, tileWidth);
-                    widthRemaining -= tw;
-                    float tu2 = tw == tileWidth ? u2 : lerp((float) tw / (float) tileWidth, u1, u2);
-
-                    renderer.draw(texture, context, x, 0, tw, cornerHeight, u1, 0, tu2, cornerV);
-                    renderer.draw(texture, context, x, height - cornerHeight, tw, cornerHeight, u1, 1 - cornerV, tu2, 1);
-
-                    x += tw;
-                }
-            }
+            renderer.drawTiled(ninePatchTextures[1][0], context, 0, cornerHeight, cornerWidth, centerHeight, cornerWidth, tileHeight);
+            renderer.drawTiled(ninePatchTextures[1][2], context, width - cornerWidth, cornerHeight, cornerWidth, centerHeight, cornerWidth, tileHeight);
         }
     }
 
     private <C> void drawStretching(ContextualTextureRenderer<? super T, C> renderer, C context, int width, int height) {
         int w = width - 2 * cornerWidth;
         int h = height - 2 * cornerHeight;
-        float u = cornerU;
-        float v = cornerV;
 
         if (hasCorners()) {
-            /* top   */ renderer.draw(texture, context, cornerWidth, 0, w, cornerHeight, u, 0, 1 - u, v);
-            /* left  */ renderer.draw(texture, context, 0, cornerHeight, cornerWidth, h, 0, v, u, 1 - v);
-            /* down  */ renderer.draw(texture, context, cornerWidth, height - cornerHeight, w, cornerHeight, u, 1 - v, 1 - u, 1);
-            /* right */ renderer.draw(texture, context, width - cornerWidth, cornerHeight, cornerWidth, h, 1 - u, v, 1, 1 - v);
+            /* top   */
+            renderer.draw(ninePatchTextures[0][1], context, cornerWidth, 0, w, cornerHeight, 0, 0, 1, 1);
+            /* left  */
+            renderer.draw(ninePatchTextures[1][0], context, 0, cornerHeight, cornerWidth, h, 0, 0, 1, 1);
+            /* down  */
+            renderer.draw(ninePatchTextures[2][1], context, cornerWidth, height - cornerHeight, w, cornerHeight, 0, 0, 1, 1);
+            /* right */
+            renderer.draw(ninePatchTextures[1][2], context, width - cornerWidth, cornerHeight, cornerWidth, h, 0, 0, 1, 1);
         }
 
-        renderer.draw(texture, context, cornerWidth, cornerHeight, w, h, u, v, 1 - u, 1 - v);
+        renderer.draw(ninePatchTextures[1][1], context, cornerWidth, cornerHeight, w, h, 0, 0, 1, 1);
     }
 
     /**
@@ -186,33 +134,27 @@ public final class NinePatch<T> {
     /**
      * Creates a {@link Builder} using a full texture.
      *
-     * @param texture the texture
-     * @param <T>     the texture type
+     * @param <T> the texture type
      * @return a nine-patch renderer builder using the texture
      */
-    public static <T> Builder<T> builder(T texture) {
-        return builder(new TextureRegion<>(texture, 0, 0, 1, 1));
-    }
-
-    /**
-     * Creates a {@link Builder} using a texture region.
-     *
-     * @param texture the texture region
-     * @param <T>     the texture type
-     * @return a nine-patch renderer builder using the texture region
-     * @throws NullPointerException if the texture region is null
-     */
-    public static <T> Builder<T> builder(TextureRegion<T> texture) {
-        return new Builder<>(texture);
+    public static <T> Builder<T> builder(Class<T> textureClass,
+                                         T topLeft, T topCenter, T topRight,
+                                         T centerLeft, T centerCenter, T centerRight,
+                                         T bottomLeft, T bottomCenter, T bottomRight) {
+        return new Builder<>(textureClass, topLeft, topCenter, topRight, centerLeft, centerCenter, centerRight, bottomLeft, bottomCenter, bottomRight);
     }
 
     /**
      * The rendering mode of a nine-patch renderer.
      */
     public enum Mode {
-        /** Regions of the texture are tiled to fill areas. The default value. */
+        /**
+         * Regions of the texture are tiled to fill areas. The default value.
+         */
         TILING,
-        /** Regions of the texture are stretched to fill areas. */
+        /**
+         * Regions of the texture are stretched to fill areas.
+         */
         STRETCHING
     }
 
@@ -220,21 +162,32 @@ public final class NinePatch<T> {
      * A builder for {@link NinePatch}.
      *
      * @param <T> the texture type
-     * @see NinePatch#builder(Object)
-     * @see NinePatch#builder(TextureRegion)
+     * @see NinePatch#builder(Class, Object, Object, Object, Object, Object, Object, Object, Object, Object)
      */
     public static final class Builder<T> {
-        private final TextureRegion<T> texture;
+        private final T[][] textures;
         private int cornerWidth = 0;
         private int cornerHeight = 0;
-        private float cornerU = 0f;
-        private float cornerV = 0f;
         private @Nullable Integer tileWidth = null;
         private @Nullable Integer tileHeight = null;
         private Mode mode = Mode.TILING;
 
-        private Builder(TextureRegion<T> texture) {
-            this.texture = Objects.requireNonNull(texture, "texture");
+        private Builder(Class<T> textureClass,
+                        T topLeft, T topCenter, T topRight,
+                        T centerLeft, T centerCenter, T centerRight,
+                        T bottomLeft, T bottomCenter, T bottomRight) {
+            //noinspection unchecked
+            this.textures = (T[][]) Array.newInstance(textureClass, 3, 3);
+
+            textures[0][0] = Objects.requireNonNull(topLeft, "topLeft");
+            textures[0][1] = Objects.requireNonNull(topCenter, "topCenter");
+            textures[0][2] = Objects.requireNonNull(topRight, "topRight");
+            textures[1][0] = Objects.requireNonNull(centerLeft, "centerLeft");
+            textures[1][1] = Objects.requireNonNull(centerCenter, "centerCenter");
+            textures[1][2] = Objects.requireNonNull(centerRight, "centerRight");
+            textures[2][0] = Objects.requireNonNull(bottomLeft, "bottomLeft");
+            textures[2][1] = Objects.requireNonNull(bottomCenter, "bottomCenter");
+            textures[2][2] = Objects.requireNonNull(bottomRight, "bottomRight");
         }
 
         /**
@@ -258,29 +211,6 @@ public final class NinePatch<T> {
          */
         public Builder<T> cornerSize(int size) {
             return cornerSize(size, size);
-        }
-
-        /**
-         * Sets the corner UV sizes in the texture.
-         *
-         * @param u the width of the corner in the texture as a fraction from 0 to 1
-         * @param v the height of the corner in the texture as a fraction from 0 to 1
-         * @return this builder
-         */
-        public Builder<T> cornerUv(float u, float v) {
-            cornerU = u;
-            cornerV = v;
-            return this;
-        }
-
-        /**
-         * Sets the corner UV size in the texture.
-         *
-         * @param uv the width and height of the corner in the texture as a fraction from 0 to 1
-         * @return this builder
-         */
-        public Builder<T> cornerUv(float uv) {
-            return cornerUv(uv, uv);
         }
 
         /**
