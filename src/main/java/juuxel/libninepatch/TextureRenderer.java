@@ -42,8 +42,8 @@ public interface TextureRenderer<T> extends ContextualTextureRenderer<T, @Nullab
     }
 
     @Override
-    default void draw(T texture, @Nullable Void context, int x, int y, int width, int height, float u1, float v1, float u2, float v2) {
-        draw(texture, x, y, width, height, u1, v1, u2, v2);
+    default void draw(T texture, @Nullable Void context, int x, int y, int width, int height) {
+        draw(texture, x, y, width, height, 0, 0, 1, 1);
     }
 
     /**

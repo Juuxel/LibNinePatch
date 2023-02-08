@@ -6,6 +6,8 @@
 
 package juuxel.libninepatch;
 
+import java.util.function.Function;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
@@ -18,26 +20,14 @@ import java.util.Objects;
  * @param <T> the texture type
  */
 public final class NinePatch<T> {
-    private final TextureRegion<T> texture;
-    private final int cornerWidth, cornerHeight;
-    private final float cornerU, cornerV;
-    private final @Nullable Integer tileWidth;
-    private final @Nullable Integer tileHeight;
-    private final Mode mode;
+    private final @NotNull T textureCenter;
+    private final @Nullable CornerInformation<T> cornerInformation;
+    private final @Nullable TileInformation tileInformation;
 
-    NinePatch(Builder<T> builder) {
-        this.texture = builder.texture;
-        this.cornerWidth = builder.cornerWidth;
-        this.cornerHeight = builder.cornerHeight;
-        this.cornerU = builder.cornerU;
-        this.cornerV = builder.cornerV;
-        this.tileWidth = builder.tileWidth;
-        this.tileHeight = builder.tileHeight;
-        this.mode = builder.mode;
-
-        if (mode == Mode.TILING && (cornerWidth == 0 || cornerHeight == 0) && (tileWidth == null || tileHeight == null)) {
-            throw new IllegalArgumentException("Tile size must be specified when corner size is 0");
-        }
+    NinePatch(@NotNull T textureCenter, @Nullable CornerInformation<T> cornerInformation, @Nullable TileInformation tileInformation) {
+        this.textureCenter = textureCenter;
+        this.cornerInformation = cornerInformation;
+        this.tileInformation = tileInformation;
     }
 
     /**
@@ -50,7 +40,7 @@ public final class NinePatch<T> {
      * @param <C> the type of context that is needed to draw a texture
      */
     public <C> void draw(ContextualTextureRenderer<? super T, C> renderer, C context, int width, int height) {
-        if (mode == Mode.TILING) {
+        if (tileInformation != null) {
             drawTiling(renderer, context, width, height);
         } else {
             drawStretching(renderer, context, width, height);
@@ -71,104 +61,54 @@ public final class NinePatch<T> {
     }
 
     private boolean hasCorners() {
-        return cornerWidth > 0 && cornerHeight > 0 && cornerU > 0 & cornerV > 0;
+        return cornerInformation != null;
     }
 
     private <C> void drawCorners(ContextualTextureRenderer<? super T, C> renderer, C context, int width, int height) {
         if (!hasCorners()) return;
 
-        renderer.draw(texture, context, 0, 0, cornerWidth, cornerHeight, 0, 0, cornerU, cornerV);
-        renderer.draw(texture, context, width - cornerWidth, 0, cornerWidth, cornerHeight, 1 - cornerU, 0, 1, cornerV);
-        renderer.draw(texture, context, 0, height - cornerHeight, cornerWidth, cornerHeight, 0, 1 - cornerV, cornerU, 1);
-        renderer.draw(texture, context, width - cornerWidth, height - cornerHeight, cornerWidth, cornerHeight, 1 - cornerU, 1 - cornerV, 1, 1);
+        int cornerWidth = cornerInformation.cornerWidth;
+        int cornerHeight = cornerInformation.cornerHeight;
+        renderer.draw(cornerInformation.topLeft, context, 0, 0, cornerWidth, cornerHeight);
+        renderer.draw(cornerInformation.topRight, context, width - cornerWidth, 0, cornerWidth, cornerHeight);
+        renderer.draw(cornerInformation.bottomLeft, context, 0, height - cornerHeight, cornerWidth, cornerHeight);
+        renderer.draw(cornerInformation.bottomRight, context, width - cornerWidth, height - cornerHeight, cornerWidth, cornerHeight);
     }
 
     private <C> void drawTiling(ContextualTextureRenderer<? super T, C> renderer, C context, int width, int height) {
-        float u1 = cornerU, v1 = cornerV;
-        float u2 = 1 - cornerU, v2 = 1 - cornerV;
-        int tileWidth = this.tileWidth == null ? (int) (cornerWidth / cornerU * (u2 - u1)) : this.tileWidth;
-        int tileHeight = this.tileHeight == null ? (int) (cornerHeight / cornerV * (v2 - v1)) : this.tileHeight;
+        assert tileInformation != null;
 
-        // Middle
-        {
-            int widthRemaining = width - 2 * cornerWidth;
-            int x = cornerWidth;
+        int cornerWidth = cornerInformation != null ? cornerInformation.cornerWidth : 0;
+        int cornerHeight = cornerInformation != null ? cornerInformation.cornerHeight : 0;
+        int centerWidth = width - (2 * cornerWidth);
+        int centerHeight = height - (2 * cornerHeight);
+        int tileWidth = tileInformation.tileWidth;
+        int tileHeight = tileInformation.tileHeight;
 
-            while (widthRemaining > 0) {
-                int tw = Math.min(widthRemaining, tileWidth);
-                widthRemaining -= tw;
-                float tu2 = tw == tileWidth ? u2 : lerp((float) tw / (float) tileWidth, u1, u2);
-
-                int heightRemaining = height - 2 * cornerHeight;
-                int y = cornerHeight;
-
-                while (heightRemaining > 0) {
-                    int th = Math.min(heightRemaining, tileHeight);
-                    heightRemaining -= th;
-                    float tv2 = th == tileHeight ? v2 : lerp((float) th / (float) tileHeight, v1, v2);
-
-                    renderer.draw(texture, context, x, y, tw, th, u1, v1, tu2, tv2);
-
-                    y += th;
-                }
-
-                x += tw;
-            }
-        }
+        renderer.drawTiled(textureCenter, context, cornerWidth, cornerHeight, centerWidth, centerHeight, tileWidth, tileHeight);
 
         if (hasCorners()) {
-            // draw edges
-
-            // vertical
-            {
-                int heightRemaining = height - 2 * cornerHeight;
-                int y = cornerHeight;
-
-                while (heightRemaining > 0) {
-                    int th = Math.min(heightRemaining, tileHeight);
-                    heightRemaining -= th;
-                    float tv2 = th == tileHeight ? v2 : lerp((float) th / (float) tileHeight, v1, v2);
-
-                    renderer.draw(texture, context, 0, y, cornerWidth, th, 0, v1, cornerU, tv2);
-                    renderer.draw(texture, context, width - cornerWidth, y, cornerWidth, th, 1 - cornerU, v1, 1, tv2);
-
-                    y += th;
-                }
-            }
-
-            // Horizontal
-            {
-                int widthRemaining = width - 2 * cornerWidth;
-                int x = cornerWidth;
-
-                while (widthRemaining > 0) {
-                    int tw = Math.min(widthRemaining, tileWidth);
-                    widthRemaining -= tw;
-                    float tu2 = tw == tileWidth ? u2 : lerp((float) tw / (float) tileWidth, u1, u2);
-
-                    renderer.draw(texture, context, x, 0, tw, cornerHeight, u1, 0, tu2, cornerV);
-                    renderer.draw(texture, context, x, height - cornerHeight, tw, cornerHeight, u1, 1 - cornerV, tu2, 1);
-
-                    x += tw;
-                }
-            }
+            /* top   */ renderer.drawTiled(cornerInformation.topCenter, context, cornerWidth, 0, centerWidth, cornerHeight, tileWidth, cornerHeight);
+            /* left  */ renderer.drawTiled(cornerInformation.centerLeft, context, 0, cornerHeight, cornerWidth, centerHeight, cornerWidth, tileHeight);
+            /* down  */ renderer.drawTiled(cornerInformation.bottomCenter, context, cornerWidth, height - cornerHeight, centerWidth, cornerHeight, tileWidth, cornerHeight);
+            /* right */ renderer.drawTiled(cornerInformation.centerRight, context, width - cornerWidth, cornerHeight, cornerWidth, centerHeight, cornerWidth, tileHeight);
         }
     }
 
     private <C> void drawStretching(ContextualTextureRenderer<? super T, C> renderer, C context, int width, int height) {
-        int w = width - 2 * cornerWidth;
-        int h = height - 2 * cornerHeight;
-        float u = cornerU;
-        float v = cornerV;
+        int cornerWidth = cornerInformation != null ? cornerInformation.cornerWidth : 0;
+        int cornerHeight = cornerInformation != null ? cornerInformation.cornerHeight : 0;
+        int centerWidth = width - 2 * cornerWidth;
+        int centerHeight = height - 2 * cornerHeight;
+
+        renderer.draw(textureCenter, context, cornerWidth, cornerHeight, centerWidth, centerHeight);
 
         if (hasCorners()) {
-            /* top   */ renderer.draw(texture, context, cornerWidth, 0, w, cornerHeight, u, 0, 1 - u, v);
-            /* left  */ renderer.draw(texture, context, 0, cornerHeight, cornerWidth, h, 0, v, u, 1 - v);
-            /* down  */ renderer.draw(texture, context, cornerWidth, height - cornerHeight, w, cornerHeight, u, 1 - v, 1 - u, 1);
-            /* right */ renderer.draw(texture, context, width - cornerWidth, cornerHeight, cornerWidth, h, 1 - u, v, 1, 1 - v);
+            /* top   */ renderer.draw(cornerInformation.topCenter, context, cornerWidth, 0, centerWidth, cornerHeight);
+            /* left  */ renderer.draw(cornerInformation.centerLeft, context, 0, cornerHeight, cornerWidth, centerHeight);
+            /* down  */ renderer.draw(cornerInformation.bottomCenter, context, cornerWidth, height - cornerHeight, centerWidth, cornerHeight);
+            /* right */ renderer.draw(cornerInformation.centerRight, context, width - cornerWidth, cornerHeight, cornerWidth, centerHeight);
         }
-
-        renderer.draw(texture, context, cornerWidth, cornerHeight, w, h, u, v, 1 - u, 1 - v);
     }
 
     /**
@@ -320,10 +260,101 @@ public final class NinePatch<T> {
         /**
          * Creates a new {@link NinePatch} from this builder.
          *
+         * @param textureAllocator a function that creates a subsection of a texture.
          * @return the created nine-patch renderer
          */
-        public NinePatch<T> build() {
-            return new NinePatch<>(this);
+        public <TextureType> NinePatch<TextureType> build(Function<TextureRegion<T>, TextureType> textureAllocator) {
+            TextureType centerTexture = textureAllocator.apply(computeSubRegion(cornerU, cornerV, 1 - cornerU, 1 - cornerV));
+
+            CornerInformation<TextureType> cornerInformation = null;
+            if (cornerWidth != 0 && cornerHeight != 0) {
+                cornerInformation = new CornerInformation<>(
+                    textureAllocator.apply(computeSubRegion(0, 0, cornerU, cornerV)),
+                    textureAllocator.apply(computeSubRegion(cornerU, 0, 1 - cornerU, cornerV)),
+                    textureAllocator.apply(computeSubRegion(1 - cornerU, 0, 1, cornerV)),
+                    textureAllocator.apply(computeSubRegion(0, cornerV, cornerU, 1 - cornerV)),
+                    textureAllocator.apply(computeSubRegion(1 - cornerU, cornerV, 1, 1 - cornerV)),
+                    textureAllocator.apply(computeSubRegion(0, 1 - cornerV, cornerU, 1)),
+                    textureAllocator.apply(computeSubRegion(cornerU, 1 - cornerV, 1 - cornerU, 1)),
+                    textureAllocator.apply(computeSubRegion(1 - cornerU, 1 - cornerV, 1, 1)),
+                    cornerWidth,
+                    cornerHeight
+                );
+            }
+
+            TileInformation tileInformation = null;
+            if (mode == Mode.TILING) {
+                if (tileWidth == null && (cornerWidth == 0 || cornerU == 0)) {
+                    throw new IllegalArgumentException("For Tiling-Mode, tileWidth must be specified if cornerWidth is 0");
+                }
+                if (tileHeight == null && (cornerHeight == 0 || cornerV == 0)) {
+                    throw new IllegalArgumentException("For Tiling-Mode, tileHeight must be specified if cornerHeight is 0");
+                }
+
+                tileInformation = new TileInformation(
+                    tileWidth != null ? tileWidth : (int) ((cornerWidth / cornerU) * (1f - (2 * cornerU))),
+                    tileHeight != null ? tileHeight : (int) ((cornerHeight / cornerV) * (1f - (2 * cornerV)))
+                );
+            }
+
+            return new NinePatch<>(centerTexture, cornerInformation, tileInformation);
+        }
+
+        private TextureRegion<T> computeSubRegion(float u1, float v1, float u2, float v2) {
+            float baseUvWidth = this.texture.u2 - this.texture.u1;
+            float baseUvHeight = this.texture.v2 - this.texture.v1;
+            return new TextureRegion<>(
+                this.texture.texture,
+                this.texture.u1 + (baseUvWidth * u1),
+                this.texture.v1 + (baseUvHeight * v1),
+                this.texture.u1 + (baseUvWidth * u2),
+                this.texture.v1 + (baseUvHeight * v2)
+            );
+        }
+    }
+
+    /**
+     * NinePatch either has all corner/edge textures, or none.
+     */
+    private static class CornerInformation<TextureType> {
+        public final @NotNull TextureType topLeft;
+        public final @NotNull TextureType topCenter;
+        public final @NotNull TextureType topRight;
+        public final @NotNull TextureType centerLeft;
+        public final @NotNull TextureType centerRight;
+        public final @NotNull TextureType bottomLeft;
+        public final @NotNull TextureType bottomCenter;
+        public final @NotNull TextureType bottomRight;
+        public final int cornerWidth;
+        public final int cornerHeight;
+
+        public CornerInformation(@NotNull TextureType topLeft, @NotNull TextureType topCenter, @NotNull TextureType topRight,
+                                 @NotNull TextureType centerLeft, @NotNull TextureType centerRight,
+                                 @NotNull TextureType bottomLeft, @NotNull TextureType bottomCenter, @NotNull TextureType bottomRight,
+                                 int cornerWidth, int cornerHeight) {
+            this.topLeft = topLeft;
+            this.topCenter = topCenter;
+            this.topRight = topRight;
+            this.centerLeft = centerLeft;
+            this.centerRight = centerRight;
+            this.bottomLeft = bottomLeft;
+            this.bottomCenter = bottomCenter;
+            this.bottomRight = bottomRight;
+            this.cornerWidth = cornerWidth;
+            this.cornerHeight = cornerHeight;
+        }
+    }
+
+    /**
+     * NinePatch is either tiling and has tile information, or has neither.
+     */
+    private static class TileInformation {
+        public final int tileWidth;
+        public final int tileHeight;
+
+        public TileInformation(int tileWidth, int tileHeight) {
+            this.tileWidth = tileWidth;
+            this.tileHeight = tileHeight;
         }
     }
 }
