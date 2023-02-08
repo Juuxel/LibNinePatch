@@ -25,33 +25,51 @@ public interface ContextualTextureRenderer<T, C> {
      * @param y       the topmost Y coordinate of the target drawing region
      * @param width   the width of the target region
      * @param height  the height of the target region
-     * @param u1      the left edge of the input region as a fraction from 0 to 1
-     * @param v1      the top edge of the input region as a fraction from 0 to 1
-     * @param u2      the right edge of the input region as a fraction from 0 to 1
-     * @param v2      the bottom edge of the input region as a fraction from 0 to 1
      */
-    void draw(T texture, C context, int x, int y, int width, int height, float u1, float v1, float u2, float v2);
+    void draw(T texture, C context, int x, int y, int width, int height);
 
     /**
      * Draws rectangular subregion of a texture region.
      *
-     * @param region  the texture region
-     * @param context the context needed to draw the texture
-     * @param x       the leftmost X coordinate of the target drawing region
-     * @param y       the topmost Y coordinate of the target drawing region
-     * @param width   the width of the target region
-     * @param height  the height of the target region
-     * @param u1      the left edge of the input region as a fraction from 0 to 1
-     * @param v1      the top edge of the input region as a fraction from 0 to 1
-     * @param u2      the right edge of the input region as a fraction from 0 to 1
-     * @param v2      the bottom edge of the input region as a fraction from 0 to 1
+     * @param texture    the texture
+     * @param context    the context needed to draw the texture
+     * @param x          the leftmost X coordinate of the target drawing region
+     * @param y          the topmost Y coordinate of the target drawing region
+     * @param width      the width of the target region
+     * @param height     the height of the target region
+     * @param tileWidth  the width of each tile
+     * @param tileHeight the height of each tile
      */
-    default void draw(TextureRegion<? extends T> region, C context, int x, int y, int width, int height, float u1, float v1, float u2, float v2) {
-        T texture = region.texture;
-        u1 = NinePatch.lerp(u1, region.u1, region.u2);
-        u2 = NinePatch.lerp(u2, region.u1, region.u2);
-        v1 = NinePatch.lerp(v1, region.v1, region.v2);
-        v2 = NinePatch.lerp(v2, region.v1, region.v2);
-        draw(texture, context, x, y, width, height, u1, v1, u2, v2);
+    default void drawTiled(T texture, C context, int x, int y, int width, int height, int tileWidth, int tileHeight) {
+        float numHorizontalTiles = width / ((float) tileWidth);
+        float numVerticalTiles = height / ((float) tileHeight);
+        int numFullHorizontalTiles = Math.round(numHorizontalTiles);
+        int numFullVerticalTiles = Math.round(numVerticalTiles);
+
+        for (int i = 0; i < numFullHorizontalTiles; i++) {
+            for (int j = 0; j < numFullVerticalTiles; j++) {
+                draw(texture, context, x + (tileWidth * i), y + (tileHeight * j), tileWidth, tileHeight);
+            }
+        }
+
+        int tiledHorizontalSpace = tileWidth * numFullHorizontalTiles;
+        int missingFractionalXTiling = width - tiledHorizontalSpace;
+        if (missingFractionalXTiling > 0) {
+            for (int j = 0; j < numFullVerticalTiles; j++) {
+                draw(texture, context, x + tiledHorizontalSpace, y + (tileHeight * j), missingFractionalXTiling, tileHeight);
+            }
+        }
+
+        int tiledVerticalSpace = tileHeight * numFullVerticalTiles;
+        int missingFractionalYTiling = height - tiledVerticalSpace;
+        if (missingFractionalYTiling > 0) {
+            for (int i = 0; i < numFullHorizontalTiles; i++) {
+                draw(texture, context, x + (tileWidth * i), y + tiledVerticalSpace, tileWidth, missingFractionalYTiling);
+            }
+        }
+
+        if (missingFractionalXTiling > 0 && missingFractionalYTiling > 0) {
+            draw(texture, context, x + tiledHorizontalSpace, y + tiledVerticalSpace, missingFractionalXTiling, missingFractionalYTiling);
+        }
     }
 }
