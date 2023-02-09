@@ -2,7 +2,7 @@ plugins {
     `java-library`
     `maven-publish`
     signing
-    id("org.cadixdev.licenser") version "0.6.0"
+    id("net.kyori.indra.licenser.spotless") version "3.0.1"
 }
 
 group = "io.github.juuxel"
@@ -24,8 +24,9 @@ dependencies {
     compileOnly("org.jetbrains:annotations:20.1.0")
 }
 
-license {
-    header(file("HEADER.txt"))
+indraSpotlessLicenser {
+    licenseHeaderFile("HEADER.txt")
+    newLine(true)
 }
 
 publishing {
