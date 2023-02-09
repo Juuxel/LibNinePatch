@@ -91,29 +91,13 @@ public final class NinePatch<T> {
 
         // Middle
         {
-            int widthRemaining = width - 2 * cornerWidth;
-            int x = cornerWidth;
-
-            while (widthRemaining > 0) {
-                int tw = Math.min(widthRemaining, tileWidth);
-                widthRemaining -= tw;
-                float tu2 = tw == tileWidth ? u2 : lerp((float) tw / (float) tileWidth, u1, u2);
-
-                int heightRemaining = height - 2 * cornerHeight;
-                int y = cornerHeight;
-
-                while (heightRemaining > 0) {
-                    int th = Math.min(heightRemaining, tileHeight);
-                    heightRemaining -= th;
-                    float tv2 = th == tileHeight ? v2 : lerp((float) th / (float) tileHeight, v1, v2);
-
-                    renderer.draw(texture, context, x, y, tw, th, u1, v1, tu2, tv2);
-
-                    y += th;
-                }
-
-                x += tw;
-            }
+            renderer.drawTiled(
+                texture, context,
+                cornerWidth, cornerHeight,
+                width - 2 * cornerWidth, height - 2 * cornerHeight,
+                tileWidth, tileHeight,
+                u1, v1, u2, v2
+            );
         }
 
         if (hasCorners()) {
@@ -121,36 +105,18 @@ public final class NinePatch<T> {
 
             // vertical
             {
-                int heightRemaining = height - 2 * cornerHeight;
+                int regionHeight = height - 2 * cornerHeight;
                 int y = cornerHeight;
-
-                while (heightRemaining > 0) {
-                    int th = Math.min(heightRemaining, tileHeight);
-                    heightRemaining -= th;
-                    float tv2 = th == tileHeight ? v2 : lerp((float) th / (float) tileHeight, v1, v2);
-
-                    renderer.draw(texture, context, 0, y, cornerWidth, th, 0, v1, cornerU, tv2);
-                    renderer.draw(texture, context, width - cornerWidth, y, cornerWidth, th, 1 - cornerU, v1, 1, tv2);
-
-                    y += th;
-                }
+                renderer.drawTiled(texture, context, 0, y, cornerWidth, regionHeight, cornerWidth, tileHeight, 0, v1, cornerU, v2);
+                renderer.drawTiled(texture, context, width - cornerWidth, y, cornerWidth, regionHeight, cornerWidth, tileHeight, 1 - cornerU, v1, 1, v2);
             }
 
             // Horizontal
             {
-                int widthRemaining = width - 2 * cornerWidth;
+                int regionWidth = width - 2 * cornerWidth;
                 int x = cornerWidth;
-
-                while (widthRemaining > 0) {
-                    int tw = Math.min(widthRemaining, tileWidth);
-                    widthRemaining -= tw;
-                    float tu2 = tw == tileWidth ? u2 : lerp((float) tw / (float) tileWidth, u1, u2);
-
-                    renderer.draw(texture, context, x, 0, tw, cornerHeight, u1, 0, tu2, cornerV);
-                    renderer.draw(texture, context, x, height - cornerHeight, tw, cornerHeight, u1, 1 - cornerV, tu2, 1);
-
-                    x += tw;
-                }
+                renderer.drawTiled(texture, context, x, 0, regionWidth, cornerHeight, tileWidth, cornerHeight, u1, 0, u2, cornerV);
+                renderer.drawTiled(texture, context, x, height - cornerHeight, regionWidth, cornerHeight, tileWidth, cornerHeight, u1, 1 - cornerV, u2, 1);
             }
         }
     }
