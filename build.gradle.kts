@@ -8,6 +8,8 @@ plugins {
 group = "io.github.juuxel"
 version = "1.1.0"
 
+val demoSources = sourceSets.create("demo")
+
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
@@ -22,6 +24,7 @@ repositories {
 
 dependencies {
     compileOnly("org.jetbrains:annotations:20.1.0")
+    demoSources.implementationConfigurationName(sourceSets.main.get().output)
 }
 
 indraSpotlessLicenser {
@@ -87,6 +90,12 @@ tasks {
         filesMatching("fabric.mod.json") {
             expand("version" to version)
         }
+    }
+
+    register<JavaExec>("runDemo") {
+        classpath(demoSources.output)
+        classpath(demoSources.runtimeClasspath)
+        mainClass.set("juuxel.libninepatch.demo.Main")
     }
 }
 
