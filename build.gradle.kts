@@ -31,8 +31,20 @@ repositories {
 }
 
 dependencies {
+    // Core deps
     compileOnly("org.jetbrains:annotations:20.1.0")
+
+    // Source set setup
     demoSources.implementationConfigurationName(sourceSets.main.get().output)
+
+    // JUnit
+    testImplementation(platform("org.junit:junit-bom:5.9.2"))
+    testImplementation("org.junit.jupiter:junit-jupiter-api")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+
+    // Other test dependencies
+    testImplementation(platform("org.assertj:assertj-bom:3.24.2"))
+    testImplementation("org.assertj:assertj-swing:3.17.1")
 }
 
 indraSpotlessLicenser {
@@ -132,6 +144,10 @@ tasks {
         classpath(demoSources.output)
         classpath(demoSources.runtimeClasspath)
         mainClass.set("juuxel.libninepatch.demo.Main")
+    }
+
+    test {
+        useJUnitPlatform()
     }
 }
 
