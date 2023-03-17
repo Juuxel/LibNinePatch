@@ -77,6 +77,11 @@ publishing {
 tasks {
     jar {
         from("LICENSE")
+        manifest {
+            attributes(
+                "Fabric-Loom-Remap" to "false",
+            )
+        }
     }
 
     withType<JavaCompile> {
