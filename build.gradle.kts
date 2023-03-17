@@ -9,6 +9,14 @@ group = "io.github.juuxel"
 version = "1.2.0-beta.1"
 
 val demoSources = sourceSets.create("demo")
+val modularityJavaVersion = 9
+val modularitySources = sourceSets.create("modularity") {
+    compileClasspath = files(sourceSets.main.map { it.compileClasspath })
+
+    java {
+        srcDirs(sourceSets.main.map { it.java.srcDirs })
+    }
+}
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -77,8 +85,13 @@ publishing {
 tasks {
     jar {
         from("LICENSE")
+        from(modularitySources.output) {
+            include("module-info.class")
+            into("META-INF/versions/$modularityJavaVersion")
+        }
         manifest {
             attributes(
+                "Multi-Release" to "true",
                 "Fabric-Loom-Remap" to "false",
             )
         }
@@ -87,6 +100,24 @@ tasks {
     withType<JavaCompile> {
         options.encoding = "UTF-8"
         options.release.set(8)
+    }
+
+    "compileModularityJava"(JavaCompile::class) {
+        options.release.set(modularityJavaVersion)
+        options.compilerArgs.addAll(listOf("--module-version", project.version.toString()))
+    }
+
+    "sourcesJar"(Jar::class) {
+        from("LICENSE")
+        from(modularitySources.allSource) {
+            include("module-info.java")
+            into("META-INF/versions/$modularityJavaVersion")
+        }
+    }
+
+    javadoc {
+        source = modularitySources.allJava
+        classpath = modularitySources.compileClasspath
     }
 
     processResources {
