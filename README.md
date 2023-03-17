@@ -10,6 +10,6 @@ render a platform-specific texture type, such as `BufferedImage` in AWT's case.
 Get it on Maven Central:
 ```kotlin
 dependencies {
-    implementation("io.github.juuxel:libninepatch:1.0.0")
+    implementation("io.github.juuxel:libninepatch:1.2.0")
 }
 ```
